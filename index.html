@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>CRMonX Ultra App</title>
+    <title>CRMonX Luxury App</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -77,8 +77,8 @@
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
         .animate-slideUp { animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         
-        @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-        .animate-slideInRight { animation: slideInRight 0.3s ease-out forwards; }
+        @keyframes drawLine { from { stroke-dashoffset: 1000; } to { stroke-dashoffset: 0; } }
+        .animate-draw { stroke-dasharray: 1000; stroke-dashoffset: 1000; animation: drawLine 2.5s ease-out forwards; }
 
         @keyframes pulse-gold {
             0%, 100% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.4); }
@@ -100,19 +100,7 @@
             background: rgba(255, 255, 255, 0.85);
             backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
-        }
-        
-        .chat-bubble {
-            border-bottom-left-radius: 1.5rem;
-            border-bottom-right-radius: 1.5rem;
-            border-top-right-radius: 1.5rem;
-            border-top-left-radius: 0.25rem;
-        }
-        .chat-bubble.user {
-            border-top-left-radius: 1.5rem;
-            border-top-right-radius: 0.25rem;
-            background: #111;
-            color: white;
+            border-top: 1px solid rgba(255, 255, 255, 0.5);
         }
 
         /* Safe Areas */
@@ -130,13 +118,66 @@
           Users, AlertTriangle, Camera, Heart, Shield, 
           ListChecks, Activity, Save, PhoneCall, CheckCircle, 
           Clock, Menu, X, Plus, Trash2, ChevronDown, ChevronRight,
-          ArrowLeft, Grid, User, LogIn, Lock, MessageCircle, Star, Diamond, Briefcase, LayoutDashboard, CalendarCheck, Bot, Send, Sun, CloudRain, CreditCard, Sparkles
+          ArrowLeft, Grid, User, LogIn, Lock, MessageCircle, Star, Diamond, Briefcase, LayoutDashboard, CalendarCheck, Bot, Send, Sun, CloudRain, CreditCard, Sparkles, Volume2, DollarSign, Map, MapPin
         } from 'lucide-react';
 
-        // --- SES & HAPTİK ---
+        // --- SES & HAPTİK SİSTEMİ ---
+        const playSound = (type = 'click') => {
+          try {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContext) return;
+            const ctx = new AudioContext();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            const now = ctx.currentTime;
+            
+            if (type === 'click') {
+              osc.type = 'sine';
+              osc.frequency.setValueAtTime(600, now);
+              osc.frequency.exponentialRampToValueAtTime(100, now + 0.1);
+              gain.gain.setValueAtTime(0.1, now);
+              gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+              osc.start(now);
+              osc.stop(now + 0.1);
+            } else if (type === 'success') {
+              osc.type = 'triangle';
+              osc.frequency.setValueAtTime(440, now);
+              osc.frequency.linearRampToValueAtTime(880, now + 0.1);
+              gain.gain.setValueAtTime(0.05, now);
+              gain.gain.linearRampToValueAtTime(0.001, now + 0.3);
+              osc.start(now);
+              osc.stop(now + 0.3);
+            }
+          } catch (e) {}
+        };
+
         const interact = (type = 'click') => {
-          if (navigator.vibrate) navigator.vibrate(type === 'success' ? [10, 30, 10] : 5);
-          // Audio logic simplified for brevity
+          if (navigator.vibrate) navigator.vibrate(type === 'success' ? [15, 50, 15] : 10);
+          playSound(type);
+        };
+
+        // --- SESLİ TANITIM (TTS) ---
+        const speakIntro = () => {
+          if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+            
+            const text = "Merhaba Sezen ve Orkut! Ben Siyeremoniks. Yapay zeka destekli lüks düğün operasyon sisteminizim. Sizin için her detayı düşündüm. Hadi, hayalinizdeki düğünü kusursuz bir operasyona dönüştürelim.";
+            
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'tr-TR';
+            utterance.rate = 0.95;
+            utterance.pitch = 1.0;
+            
+            const voices = window.speechSynthesis.getVoices();
+            const trVoice = voices.find(v => v.lang.includes('tr'));
+            if(trVoice) utterance.voice = trVoice;
+
+            window.speechSynthesis.speak(utterance);
+          } else {
+            alert("Cihazınız sesli asistanı desteklemiyor.");
+          }
         };
 
         // --- Veri ---
@@ -176,19 +217,18 @@
           'expectations': { list: ["Bizi yönlendirin", "Doğal akış istiyoruz", "Çok poz istemiyoruz", "Rahat, sakin ilerlesin", "Enerjik, eğlenceli olsun", "Editorial / şık dursun"] }
         };
 
-        // --- Chatbot Logic ---
         const BOT_RESPONSES = {
-            'default': "Bunu not aldım. Operasyon ekibine iletiyorum.",
+            'default': "Bunu not aldım. 10X Operasyon ekibine iletiyorum.",
             'kriz': "Kriz durumlarında önceliğimiz çiftin huzuru. Lütfen Kriz Matrisi bölümünden yetkili kişiyi arayın.",
             'gelin': "Gelin hanım için 'Günün Ruhu' bölümünde 'Sıfır Stres' modunu aktifleştirmenizi öneririm.",
             'fotoğraf': "Fotoğraf için 'Shotlist' ve 'Vazgeçilmezler' listesini tamamlamanız çok önemli.",
             'plan': "Planlama %85 oranında tamamlandı. Sadece 'Final' bölümünde eksikler var.",
-            'merhaba': "Merhaba! Ben CRMonX Asistanı. Düğün planlamanda sana nasıl yardımcı olabilirim?"
+            'merhaba': "Merhaba! Ben CRMonX 10X Asistanı. Düğün planlamanda sana nasıl yardımcı olabilirim?"
         };
 
-        // --- Components ---
-
-        // Bottom Sheet Component
+        // --- Bileşenler ---
+        
+        // Bottom Sheet Component (Added to fix ReferenceError)
         const BottomSheet = ({ isOpen, onClose, title, children }) => {
             if (!isOpen) return null;
             return (
@@ -209,7 +249,7 @@
         const CheckboxItem = ({ label, isChecked, note, onToggle, onNoteChange }) => (
           <div className={`group transition-all duration-300 mb-3 ${isChecked ? 'opacity-70 order-last' : 'opacity-100'}`}>
             <div 
-              className={`flex items-start p-4 rounded-xl cursor-pointer transition-all border ${isChecked ? 'bg-gray-50 border-transparent' : 'bg-white border-gray-100 shadow-sm hover:border-gold/30 hover:shadow-soft'}`}
+              className={`flex items-start p-4 rounded-xl cursor-pointer transition-all border active:scale-[0.98] ${isChecked ? 'bg-gray-50 border-transparent' : 'bg-white border-gray-100 shadow-sm hover:border-gold/30 hover:shadow-soft'}`}
               onClick={() => { onToggle(); interact(isChecked ? 'click' : 'success'); }}
             >
               <div className={`mt-0.5 w-5 h-5 rounded border flex items-center justify-center flex-shrink-0 mr-4 transition-all duration-300 ${isChecked ? 'bg-gold border-gold' : 'border-gray-300 bg-transparent'}`}>
@@ -219,8 +259,6 @@
                 <span className={`text-sm font-manrope font-medium block leading-relaxed transition-colors ${isChecked ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
                   {label}
                 </span>
-                
-                {/* Note Area - Always visible if checked or has content, otherwise expandable */}
                 {(isChecked || note) && (
                   <div className="mt-3 animate-fadeIn" onClick={(e) => e.stopPropagation()}>
                     <input
@@ -237,37 +275,34 @@
           </div>
         );
 
+        // Chatbot Component - Updated with Static Icon
         const Chatbot = ({ isOpen, onClose }) => {
-            const [messages, setMessages] = useState([
-                { id: 1, text: "Merhaba! Ben CRMonX Asistanı. Düğün sürecinde aklına takılan her şeyi bana sorabilirsin.", sender: 'bot' }
-            ]);
+            const [messages, setMessages] = useState([]);
             const [input, setInput] = useState('');
             const [isTyping, setIsTyping] = useState(false);
             const messagesEndRef = useRef(null);
 
-            const scrollToBottom = () => {
-                messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-            };
-
-            useEffect(scrollToBottom, [messages, isTyping]);
+            useEffect(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), [messages, isTyping]);
+            
+            // Auto greeting when opened
+            useEffect(() => {
+                if(isOpen && messages.length === 0) {
+                     setMessages([{ id: 1, text: "Merhaba Sezen & Orkut! Ben CRMonX 10X Asistanı. Süreçle ilgili her şeyi bana sorabilirsiniz.", sender: 'bot' }]);
+                }
+            }, [isOpen]);
 
             const handleSend = () => {
                 if (!input.trim()) return;
-                
                 const userMsg = { id: Date.now(), text: input, sender: 'user' };
                 setMessages(prev => [...prev, userMsg]);
                 setInput('');
                 setIsTyping(true);
+                interact('click');
 
-                // Simulate AI Logic
                 setTimeout(() => {
                     const lowerInput = userMsg.text.toLowerCase();
                     let responseText = BOT_RESPONSES.default;
-                    
-                    Object.keys(BOT_RESPONSES).forEach(key => {
-                        if (lowerInput.includes(key)) responseText = BOT_RESPONSES[key];
-                    });
-
+                    Object.keys(BOT_RESPONSES).forEach(key => { if (lowerInput.includes(key)) responseText = BOT_RESPONSES[key]; });
                     setMessages(prev => [...prev, { id: Date.now() + 1, text: responseText, sender: 'bot' }]);
                     setIsTyping(false);
                     interact('success');
@@ -280,54 +315,31 @@
                 <div className="fixed inset-0 z-50 flex items-end justify-center pointer-events-none">
                     <div className="absolute inset-0 bg-black/20 backdrop-blur-sm pointer-events-auto" onClick={onClose} />
                     <div className="bg-white w-full h-[85vh] sm:h-[600px] sm:w-[400px] sm:mb-20 sm:rounded-3xl rounded-t-[2rem] shadow-2xl flex flex-col pointer-events-auto animate-slideUp border border-gold/20">
-                        {/* Header */}
                         <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-cream rounded-t-[2rem]">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-black rounded-full flex items-center justify-center text-gold shadow-lg">
-                                    <Bot size={20} />
+                                {/* STATIC ICON AVATAR */}
+                                <div className="w-10 h-10 bg-black rounded-full flex items-center justify-center text-gold shadow-lg overflow-hidden">
+                                     <Bot size={24} />
                                 </div>
                                 <div>
-                                    <h3 className="font-display text-lg font-bold">CRMonX AI</h3>
-                                    <p className="text-[10px] text-green-600 font-bold flex items-center gap-1"><span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> Çevrimiçi</p>
+                                    <h3 className="font-display text-lg font-bold">10X Asistan</h3>
+                                    <p className="text-[10px] text-green-600 font-bold flex items-center gap-1"><span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> Online</p>
                                 </div>
                             </div>
                             <button onClick={onClose} className="p-2 bg-white rounded-full text-gray-400 hover:text-black hover:bg-gray-100"><X size={20}/></button>
                         </div>
-
-                        {/* Messages */}
                         <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-[#FFFAF0]">
                             {messages.map(msg => (
                                 <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                    <div className={`max-w-[80%] p-4 text-sm shadow-sm ${msg.sender === 'user' ? 'bg-black text-white rounded-l-2xl rounded-tr-2xl rounded-br-sm' : 'bg-white text-gray-700 rounded-r-2xl rounded-tl-2xl rounded-bl-sm border border-gray-100'}`}>
-                                        {msg.text}
-                                    </div>
+                                    <div className={`max-w-[80%] p-4 text-sm shadow-sm ${msg.sender === 'user' ? 'bg-black text-white rounded-l-2xl rounded-tr-2xl rounded-br-sm' : 'bg-white text-gray-700 rounded-r-2xl rounded-tl-2xl rounded-bl-sm border border-gray-100'}`}>{msg.text}</div>
                                 </div>
                             ))}
-                            {isTyping && (
-                                <div className="flex justify-start">
-                                    <div className="bg-white p-4 rounded-r-2xl rounded-tl-2xl border border-gray-100 flex gap-1 items-center h-10 shadow-sm">
-                                        <div className="w-1.5 h-1.5 bg-gray-400 rounded-full typing-dot"></div>
-                                        <div className="w-1.5 h-1.5 bg-gray-400 rounded-full typing-dot"></div>
-                                        <div className="w-1.5 h-1.5 bg-gray-400 rounded-full typing-dot"></div>
-                                    </div>
-                                </div>
-                            )}
+                            {isTyping && <div className="flex justify-start"><div className="bg-white p-4 rounded-r-2xl rounded-tl-2xl border border-gray-100 text-xs text-gray-400 italic">Asistan yazıyor...</div></div>}
                             <div ref={messagesEndRef} />
                         </div>
-
-                        {/* Input */}
                         <div className="p-4 bg-white border-t border-gray-100 flex gap-2 rounded-b-none sm:rounded-b-3xl">
-                            <input 
-                                type="text" 
-                                value={input}
-                                onChange={(e) => setInput(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                                placeholder="Bir şeyler yaz..." 
-                                className="flex-1 bg-gray-50 border-none rounded-xl px-4 text-sm focus:ring-2 focus:ring-gold/20 outline-none"
-                            />
-                            <button onClick={handleSend} className="w-12 h-12 bg-gold text-white rounded-xl flex items-center justify-center hover:bg-[#bfa035] active:scale-95 transition-transform shadow-lg">
-                                <Send size={20} />
-                            </button>
+                            <input type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSend()} placeholder="Bir şeyler yaz..." className="flex-1 bg-gray-50 border-none rounded-xl px-4 text-sm focus:ring-2 focus:ring-gold/20 outline-none" />
+                            <button onClick={handleSend} className="w-12 h-12 bg-gold text-white rounded-xl flex items-center justify-center hover:bg-[#bfa035] active:scale-95 transition-transform shadow-lg"><Send size={20} /></button>
                         </div>
                     </div>
                 </div>
@@ -337,7 +349,7 @@
         // --- Ana Uygulama ---
 
         function CeremonixApp() {
-          const [currentView, setCurrentView] = useState('intro');
+          const [currentView, setCurrentView] = useState('intro'); // intro, dashboard, section, profile, contract, venue
           const [userRole, setUserRole] = useState('user');
           const [activeSectionId, setActiveSectionId] = useState(null);
           
@@ -347,6 +359,7 @@
           const [panicReason, setPanicReason] = useState('');
           const [panicNote, setPanicNote] = useState('');
           
+          // Data
           const [vipList, setVipList] = useState(() => JSON.parse(localStorage.getItem('crm_vipList')) || []);
           const [checklistState, setChecklistState] = useState(() => JSON.parse(localStorage.getItem('crm_checklist')) || {});
           const [newPerson, setNewPerson] = useState({ name: '', relation: '', note: '', photo: null, tags: [] });
@@ -354,7 +367,6 @@
           useEffect(() => { localStorage.setItem('crm_vipList', JSON.stringify(vipList)); }, [vipList]);
           useEffect(() => { localStorage.setItem('crm_checklist', JSON.stringify(checklistState)); }, [checklistState]);
 
-          // Helper Functions (Toggle, Note, Vip, Progress...)
           const toggleCheck = (id, label) => {
             const key = `${id}-${label}`;
             setChecklistState(prev => ({ ...prev, [key]: { ...prev[key], checked: !prev[key]?.checked } }));
@@ -390,7 +402,14 @@
              return Math.round(total / allSections.length);
           };
 
-          const goBack = () => { setCurrentView('dashboard'); setActiveSectionId(null); };
+          const goBack = () => { 
+              if (currentView === 'contract' || currentView === 'venue') {
+                  setCurrentView('profile');
+              } else {
+                  setCurrentView('dashboard'); 
+                  setActiveSectionId(null); 
+              }
+          };
 
           // --- Views ---
 
@@ -399,20 +418,124 @@
                 <div className="absolute top-[-10%] right-[-20%] w-[150%] h-[60%] border-[1px] border-gold/10 rounded-full rotate-12" />
                 <div className="absolute bottom-[-10%] left-[-20%] w-[150%] h-[60%] border-[1px] border-gold/10 rounded-full -rotate-12" />
                 <div className="relative z-10 w-full max-w-sm text-center">
-                    <h1 className="font-display text-8xl font-thin text-black mb-2 tracking-tight">CRMonX</h1>
-                    <p className="font-manrope text-[10px] uppercase tracking-[0.6em] text-gold font-bold">Smart Wedding OS</p>
-                    <div className="mt-12 bg-white/60 backdrop-blur-md rounded-3xl p-1.5 flex shadow-sm border border-white/50">
+                    <div className="flex justify-center mb-12 relative">
+                        <svg className="absolute w-64 h-64 text-gold/20 animate-draw -top-16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="0.3">
+                           <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                        </svg>
+                        <div className="text-center">
+                            <h1 className="font-display text-8xl font-thin text-black mb-2 tracking-tight">CRMonX</h1>
+                            <p className="font-manrope text-[10px] uppercase tracking-[0.6em] text-gold font-bold">Smart Wedding OS</p>
+                        </div>
+                    </div>
+                    
+                    <div className="bg-white/60 backdrop-blur-md rounded-3xl p-1.5 flex shadow-sm border border-white/50 mb-8">
                         <button onClick={() => { setUserRole('user'); interact(); }} className={`flex-1 py-4 rounded-2xl text-xs font-bold uppercase tracking-widest transition-all ${userRole === 'user' ? 'bg-black text-white shadow-lg' : 'text-gray-400'}`}>Çift</button>
                         <button onClick={() => { setUserRole('admin'); interact(); }} className={`flex-1 py-4 rounded-2xl text-xs font-bold uppercase tracking-widest transition-all ${userRole === 'admin' ? 'bg-gold text-white shadow-lg' : 'text-gray-400'}`}>Yönetici</button>
                     </div>
-                    <button onClick={() => { interact('success'); setCurrentView('dashboard'); }} className={`w-full mt-6 py-5 rounded-2xl text-xs font-bold uppercase tracking-[0.3em] text-white shadow-xl active:scale-[0.98] transition-all flex items-center justify-center gap-3 ${userRole === 'admin' ? 'bg-gold' : 'bg-black'}`}>Giriş Yap</button>
+
+                    {/* SESLİ TANITIM BUTONU */}
+                    <button onClick={() => { interact(); speakIntro(); }} className="mb-4 text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center justify-center gap-2 hover:text-gold transition-colors">
+                        <Volume2 size={16} className="animate-pulse" /> Beni Tanıt
+                    </button>
+
+                    <button onClick={() => { interact('success'); setCurrentView('dashboard'); }} className={`w-full py-5 rounded-2xl text-xs font-bold uppercase tracking-[0.3em] text-white shadow-xl active:scale-[0.98] transition-all flex items-center justify-center gap-3 ${userRole === 'admin' ? 'bg-gold' : 'bg-black'}`}>Giriş Yap</button>
                 </div>
             </div>
           );
 
+          // NEW: Contract & Budget View
+          const ContractView = () => (
+            <div className="p-6 pb-32 bg-cream min-h-screen animate-fadeIn">
+                 <div className="flex justify-between items-center mb-8">
+                    <button onClick={() => { interact(); goBack(); }} className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center hover:bg-white"><ArrowLeft size={20} className="text-gray-600"/></button>
+                    <h2 className="font-display text-2xl">Sözleşme & Bütçe</h2>
+                    <div className="w-10"></div>
+                 </div>
+
+                 <div className="bg-black text-white rounded-3xl p-8 mb-6 shadow-xl relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-6 opacity-20"><DollarSign size={64} /></div>
+                    <p className="text-xs text-gray-400 uppercase tracking-widest mb-1">Toplam Bütçe</p>
+                    <h3 className="font-display text-4xl text-gold mb-6">150.000 ₺</h3>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <p className="text-[10px] text-gray-400 uppercase tracking-wide">Ödenen</p>
+                            <p className="font-manrope text-lg font-bold text-green-400">75.000 ₺</p>
+                        </div>
+                        <div>
+                            <p className="text-[10px] text-gray-400 uppercase tracking-wide">Kalan</p>
+                            <p className="font-manrope text-lg font-bold text-red-400">75.000 ₺</p>
+                        </div>
+                    </div>
+                    <div className="w-full bg-gray-800 h-1.5 rounded-full mt-4">
+                        <div className="bg-gold h-full rounded-full" style={{width: '50%'}}></div>
+                    </div>
+                 </div>
+
+                 <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm">
+                    <h3 className="font-manrope text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Hizmet Dökümü</h3>
+                    <div className="space-y-4">
+                        {[
+                            { item: "Organizasyon & Planlama", cost: "50.000 ₺", status: "Tamamlandı" },
+                            { item: "Fotoğraf & Video (Tüm Gün)", cost: "40.000 ₺", status: "Bekliyor" },
+                            { item: "Mekan Süsleme & Dekor", cost: "60.000 ₺", status: "Kısmi" }
+                        ].map((row, i) => (
+                            <div key={i} className="flex justify-between items-center py-3 border-b border-gray-50 last:border-0">
+                                <div>
+                                    <p className="text-sm font-bold text-black">{row.item}</p>
+                                    <p className="text-xs text-gray-400">{row.status}</p>
+                                </div>
+                                <p className="text-sm font-medium text-gray-600">{row.cost}</p>
+                            </div>
+                        ))}
+                    </div>
+                 </div>
+            </div>
+          );
+
+          // NEW: Venue Map View
+          const VenueView = () => (
+             <div className="p-6 pb-32 bg-cream min-h-screen animate-fadeIn">
+                 <div className="flex justify-between items-center mb-8">
+                    <button onClick={() => { interact(); goBack(); }} className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center hover:bg-white"><ArrowLeft size={20} className="text-gray-600"/></button>
+                    <h2 className="font-display text-2xl">Mekan Krokisi</h2>
+                    <div className="w-10"></div>
+                 </div>
+                 
+                 <div className="bg-white p-4 rounded-3xl shadow-soft border border-gray-100 mb-6 h-64 flex items-center justify-center relative overflow-hidden">
+                    {/* Placeholder for Map Image */}
+                    <div className="absolute inset-0 bg-gray-50 flex flex-col items-center justify-center text-gray-300">
+                        <Map size={48} className="mb-2 opacity-50" />
+                        <p className="text-xs font-bold uppercase tracking-widest">Kroki Görseli Yükleniyor</p>
+                    </div>
+                 </div>
+
+                 <div className="grid grid-cols-2 gap-4 mb-6">
+                    <div className="bg-white p-5 rounded-2xl border border-gray-50 shadow-sm text-center">
+                        <Users size={24} className="mx-auto text-gold mb-2"/>
+                        <h4 className="font-bold text-2xl">250</h4>
+                        <p className="text-[10px] text-gray-400 uppercase">Kapasite</p>
+                    </div>
+                    <div className="bg-white p-5 rounded-2xl border border-gray-50 shadow-sm text-center">
+                        <LayoutDashboard size={24} className="mx-auto text-gold mb-2"/>
+                        <h4 className="font-bold text-2xl">24</h4>
+                        <p className="text-[10px] text-gray-400 uppercase">Masa Sayısı</p>
+                    </div>
+                 </div>
+
+                 <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm">
+                    <h3 className="font-manrope text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Oturma Düzeni Notları</h3>
+                    <ul className="text-sm text-gray-600 space-y-3 list-disc pl-4">
+                        <li>Gelin ve Damat masası piste hakim noktada (A1).</li>
+                        <li>Aile büyükleri piste en yakın yuvarlak masalarda (B1, B2).</li>
+                        <li>Orkestra sahne sağ tarafında konumlanacak.</li>
+                    </ul>
+                 </div>
+             </div>
+          );
+
           const DashboardView = () => (
             <div className="p-6 pb-32 bg-cream min-h-screen">
-                {/* 10X Feature: Live Countdown & Status */}
                 <div className="bg-white rounded-3xl p-6 shadow-soft border border-gold/10 mb-8 relative overflow-hidden">
                     <div className="absolute top-0 right-0 p-4 opacity-10"><CalendarCheck size={80} /></div>
                     <div className="relative z-10">
@@ -435,7 +558,6 @@
                     </div>
                 </div>
 
-                {/* Categories */}
                 <div className="space-y-8">
                     {CATEGORIES.map(cat => (
                         <div key={cat.id} className="animate-fadeIn">
@@ -462,11 +584,7 @@
                                             </div>
                                             <h4 className="font-display text-lg text-black leading-tight mb-1">{section.title}</h4>
                                             <p className="font-manrope text-[10px] text-gray-400 uppercase tracking-wider">{section.sub}</p>
-                                            
-                                            {/* Mini Progress */}
-                                            <div className="absolute bottom-0 left-0 w-full h-1 bg-gray-100">
-                                                <div className="h-full bg-gold transition-all duration-1000" style={{ width: `${progress}%` }}></div>
-                                            </div>
+                                            <div className="absolute bottom-0 left-0 w-full h-1 bg-gray-100"><div className="h-full bg-gold transition-all duration-1000" style={{ width: `${progress}%` }}></div></div>
                                         </button>
                                     );
                                 })}
@@ -481,8 +599,6 @@
             const section = SECTIONS[activeSectionId];
             const data = DATA_MAP[activeSectionId];
             const progress = calculateProgress(activeSectionId);
-            
-            // 10X Feature: Timeline View for Operations
             const isTimeline = activeSectionId === 'ops';
 
             return (
@@ -512,8 +628,7 @@
                            <div key={opt} className={`relative z-10 ${isTimeline ? 'pl-2' : ''}`}>
                                 {isTimeline && <div className="absolute left-[-24px] top-4 w-3 h-3 rounded-full bg-white border-2 border-gold shadow-sm z-10"></div>}
                                 <CheckboxItem 
-                                    key={opt} 
-                                    label={opt} 
+                                    key={opt} label={opt} 
                                     isChecked={checklistState[`${activeSectionId}_main-${opt}`]?.checked} 
                                     note={checklistState[`${activeSectionId}_main-${opt}`]?.note} 
                                     onToggle={() => toggleCheck(`${activeSectionId}_main`, opt)} 
@@ -522,7 +637,6 @@
                            </div>
                         ))}
                         
-                        {/* Render other sub-lists dynamically if they exist and NOT timeline */}
                         {!isTimeline && ['social', 'org', 'check'].map(subKey => data?.[subKey] && (
                             <div key={subKey}>
                                 <h3 className="font-manrope text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 mt-8 border-t border-gray-100 pt-8">
@@ -545,40 +659,57 @@
             );
           };
 
+          const ProfileView = () => (
+            <div className="p-8 pt-20 text-center animate-fadeIn">
+                <div className="w-32 h-32 rounded-full border-2 border-gold p-1 mx-auto mb-6 relative">
+                    <div className="w-full h-full rounded-full bg-white flex items-center justify-center overflow-hidden">
+                        {userRole === 'admin' ? <Briefcase size={40} className="text-gold"/> : <User size={40} className="text-gold"/>}
+                    </div>
+                </div>
+                <h2 className="font-display text-3xl mb-2">{userRole === 'admin' ? 'Yönetici' : 'Sezen & Orkut'}</h2>
+                <p className="font-manrope text-xs text-gray-400 uppercase tracking-widest mb-12">24 Ağustos 2026</p>
+                
+                <div className="space-y-4 max-w-xs mx-auto">
+                    <button onClick={() => { interact(); setCurrentView('contract'); }} className="w-full py-4 bg-white border border-gray-100 rounded-2xl text-sm font-medium flex justify-between px-6 items-center shadow-soft active:scale-95 transition-transform">Sözleşme & Bütçe <ChevronRight size={16} className="text-gray-300"/></button>
+                    <button onClick={() => { interact(); setCurrentView('venue'); }} className="w-full py-4 bg-white border border-gray-100 rounded-2xl text-sm font-medium flex justify-between px-6 items-center shadow-soft active:scale-95 transition-transform">Mekan Krokisi <ChevronRight size={16} className="text-gray-300"/></button>
+                    <button onClick={() => setCurrentView('intro')} className="w-full py-4 text-red-500 text-xs font-bold uppercase tracking-widest hover:bg-red-50 rounded-2xl transition-colors mt-8">Oturumu Kapat</button>
+                </div>
+            </div>
+          );
+
           return (
             <div className="h-screen flex flex-col font-sans text-black overflow-hidden bg-cream">
               <main className="flex-1 overflow-y-auto no-scrollbar pb-24">
                 {currentView === 'intro' && <IntroView />}
                 {currentView === 'dashboard' && <DashboardView />}
                 {currentView === 'section' && <SectionView />}
+                {currentView === 'profile' && <ProfileView />}
+                {currentView === 'contract' && <ContractView />}
+                {currentView === 'venue' && <VenueView />}
               </main>
 
               {/* Bottom Nav */}
-              {currentView !== 'intro' && currentView !== 'section' && (
+              {currentView !== 'intro' && currentView !== 'section' && currentView !== 'contract' && currentView !== 'venue' && (
                 <nav className="glass absolute bottom-0 w-full px-8 py-4 pb-8 border-t border-white/50 flex justify-between items-center z-30 safe-area-bottom">
                   <button onClick={() => { interact(); setCurrentView('dashboard'); }} className={`p-2 transition-colors ${currentView === 'dashboard' ? 'text-black' : 'text-gray-300'}`}><LayoutDashboard size={24} /></button>
                   <div className="absolute left-1/2 -translate-x-1/2 -top-6">
                     <button onClick={() => { interact('error'); setShowPanicModal(true); }} className="w-16 h-16 bg-black rounded-full flex items-center justify-center text-white shadow-2xl border-[6px] border-cream active:scale-95 transition-transform"><PhoneCall size={24} className="text-red-500" /></button>
                   </div>
-                  <button onClick={() => { interact(); setCurrentView('profile'); }} className={`p-2 ${currentView === 'profile' ? 'text-black' : 'text-gray-300'}`}><User size={24} /></button>
+                  <button onClick={() => { interact(); setCurrentView('profile'); }} className={`p-2 transition-colors ${currentView === 'profile' ? 'text-black' : 'text-gray-300'}`}><User size={24} /></button>
                 </nav>
               )}
 
-              {/* 10X Feature: CHATBOT */}
+              {/* Chatbot & Modals */}
               {currentView !== 'intro' && (
                 <div className="fixed bottom-24 right-4 z-40">
-                    <button 
-                        onClick={() => setShowChat(true)} 
-                        className="w-14 h-14 bg-gold rounded-full shadow-floating flex items-center justify-center text-white hover:scale-110 transition-transform animate-pulse-gold"
-                    >
-                        <Bot size={24} />
+                    <button onClick={() => { interact(); setShowChat(true); }} className="w-14 h-14 bg-gold rounded-full shadow-floating flex items-center justify-center text-white hover:scale-110 transition-transform animate-pulse-gold">
+                        {/* STATIC ICON AVATAR - Updated to fix previous issue */}
+                         <Bot size={28} />
                     </button>
                 </div>
               )}
-
               <Chatbot isOpen={showChat} onClose={() => setShowChat(false)} />
-
-              {/* Modals & Sheets (Add VIP & Panic Modal same as before) */}
+              
               <BottomSheet isOpen={showAddVipSheet} onClose={() => setShowAddVipSheet(false)} title="Özel Konuk Ekle">
                  <div className="space-y-6 pb-8">
                     <input type="text" placeholder="İsim Soyisim" className="w-full bg-transparent border-b border-gray-200 py-3 text-lg font-display text-black focus:outline-none focus:border-gold" value={newPerson.name} onChange={e => setNewPerson({...newPerson, name: e.target.value})} />
@@ -592,10 +723,33 @@
                     <button onClick={() => setShowPanicModal(false)} className="absolute top-6 right-6 p-2 bg-gray-100 rounded-full text-gray-400 hover:text-black"><X size={20} /></button>
                     <div className="text-center mb-8">
                       <div className="w-16 h-16 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse"><AlertTriangle size={32} /></div>
-                      <h3 className="font-display text-3xl text-black">ACİL YARDIM</h3>
-                      <p className="font-manrope text-xs text-gray-400 uppercase tracking-widest mt-1">Operasyon Ekibine Bağlan</p>
+                      <h3 className="font-display text-3xl text-black">CRM10X DESTEK</h3>
+                      <p className="font-manrope text-xs text-gray-400 uppercase tracking-widest mt-1">Operasyon Masasına Bağlan</p>
                     </div>
-                    <button onClick={() => { interact('success'); window.location.href = `https://wa.me/905325614593?text=ACİL DURUM`; setShowPanicModal(false); }} className={`w-full py-5 rounded-2xl text-xs font-bold uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 bg-red-600 text-white shadow-xl`}>WhatsApp Bildir</button>
+                    
+                    <div className="grid grid-cols-2 gap-3 mb-6">
+                      {[
+                        { label: 'Gelin/Damat Desteği', icon: Users },
+                        { label: 'Teknik Arıza', icon: Activity },
+                        { label: 'Acil LCV Desteği', icon: Shield },
+                        { label: 'CRM10X Operasyon', icon: MessageCircle }
+                      ].map((item) => (
+                        <button
+                          key={item.label}
+                          onClick={() => { setPanicReason(item.label); interact('click'); }}
+                          className={`p-4 border rounded-2xl flex flex-col items-center justify-center gap-2 transition-all ${
+                            panicReason === item.label 
+                              ? 'bg-black text-white border-black shadow-lg' 
+                              : 'bg-white border-gray-100 text-gray-400 hover:border-gray-300'
+                          }`}
+                        >
+                          <item.icon size={24} strokeWidth={1.5} />
+                          <span className="text-[10px] font-bold uppercase tracking-wide">{item.label}</span>
+                        </button>
+                      ))}
+                    </div>
+
+                    <button onClick={() => { interact('success'); const message = `🚨 *CRMonX ACİL DESTEK TALEBİ* 🚨%0A%0A*Konu:* ${panicReason || 'Genel Destek'}%0A%0A_Lütfen CRM10X Operasyon Masası olarak acil dönüş yapınız._`; window.location.href = `https://wa.me/905325614593?text=${message}`; setShowPanicModal(false); }} className={`w-full py-5 rounded-2xl text-xs font-bold uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 ${panicReason ? 'bg-red-600 text-white shadow-xl shadow-red-200' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`} disabled={!panicReason}><MessageCircle size={18} /> Operasyon Masasını Ara</button>
                   </div>
                 </div>
               )}
