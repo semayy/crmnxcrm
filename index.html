@@ -56,8 +56,8 @@
     }
     </script>
 
-    <!-- Babel for JSX -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Babel for JSX (Pinned Version for Stability) -->
+    <script src="https://unpkg.com/@babel/standalone@7.24.4/babel.min.js"></script>
 
     <style>
         body {
@@ -111,7 +111,7 @@
 <body>
     <div id="root"></div>
 
-    <script type="text/babel" data-type="module">
+    <script type="text/babel" data-type="module" data-presets="react">
         import React, { useState, useEffect, useRef } from 'react';
         import { createRoot } from 'react-dom/client';
         import { 
@@ -262,7 +262,13 @@
                 </span>
                 {(isChecked || note) && (
                   <div className="mt-3 animate-fadeIn" onClick={(e) => e.stopPropagation()}>
-                    <input type="text" placeholder="Not ekle..." value={note || ''} onChange={(e) => onNoteChange(e.target.value)} className="w-full text-xs p-2 bg-transparent border-b border-gray-200 focus:border-gold outline-none text-gray-600 font-light italic" />
+                    <input
+                      type="text"
+                      placeholder="Not ekle..."
+                      value={note || ''}
+                      onChange={(e) => onNoteChange(e.target.value)}
+                      className="w-full text-xs p-2 bg-transparent border-b border-gray-200 focus:border-gold outline-none text-gray-600 font-light italic"
+                    />
                   </div>
                 )}
               </div>
@@ -534,7 +540,7 @@
                 <div className="space-y-8">
                     {CATEGORIES.map(cat => (
                         <div key={cat.id} className="animate-fadeIn">
-                            <h3 className="font-manrope text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 ml-1 flex items-center gap-2">
+                            <h3 className="font-manrope text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 ml-1 flex items-center gap-2">
                                 <span className="w-1 h-1 rounded-full bg-gold"></span> {cat.title}
                             </h3>
                             <div className="grid grid-cols-2 gap-3">
