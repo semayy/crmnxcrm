@@ -1,1 +1,590 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  Users, AlertTriangle, Camera, Heart, Shield, 
+  ListChecks, Activity, Save, PhoneCall, CheckCircle, 
+  Clock, Menu, X, Plus, Trash2, ChevronDown, ChevronUp,
+  ArrowLeft, Grid, Calendar, User, LogIn, Lock, PieChart, MessageCircle, Briefcase
+} from 'lucide-react';
 
+// --- SES EFEKTLERİ (Synthesized Audio) ---
+const playSound = (type = 'click') => {
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    if (type === 'click') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(800, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(300, ctx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.1, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.1);
+    } else if (type === 'success') {
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(400, ctx.currentTime);
+      osc.frequency.linearRampToValueAtTime(600, ctx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.1, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.3);
+    } else if (type === 'error') {
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(150, ctx.currentTime);
+      gain.gain.setValueAtTime(0.1, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.2);
+    }
+  } catch (e) {
+    console.error("Audio play failed", e);
+  }
+};
+
+const triggerHaptic = () => {
+  if (navigator.vibrate) {
+    navigator.vibrate(10); // Hafif titreşim
+  }
+};
+
+const interact = (type = 'click') => {
+  triggerHaptic();
+  playSound(type);
+};
+
+// --- Veri Yapıları ve Sabitler ---
+
+const SECTIONS = [
+  { id: 'vip', title: 'Önemli Kişiler', sub: 'VIP & Hassas', icon: Users, color: 'bg-blue-100 text-blue-700' },
+  { id: 'family', title: 'Aile & Sosyal', sub: 'Kriz Yönetimi', icon: Users, color: 'bg-purple-100 text-purple-700' },
+  { id: 'moments', title: 'Önemli Anlar', sub: 'Foto & Org', icon: Camera, color: 'bg-pink-100 text-pink-700' },
+  { id: 'shotlist', title: 'Shotlist', sub: 'Zorunlu Kareler', icon: ListChecks, color: 'bg-indigo-100 text-indigo-700' },
+  { id: 'expectations', title: 'Beklentiler', sub: 'Genel Akış', icon: Heart, color: 'bg-rose-100 text-rose-700' },
+  { id: 'must_have', title: 'Mutlaka Olsun', sub: 'Kırmızı Çizgi', icon: CheckCircle, color: 'bg-emerald-100 text-emerald-700' },
+  { id: 'negatives', title: 'İstemediklerimiz', sub: 'Negatif Liste', icon: X, color: 'bg-red-100 text-red-700' },
+  { id: 'style', title: 'Stil & Ruh Hali', sub: 'Tarz Seçimi', icon: Activity, color: 'bg-orange-100 text-orange-700' },
+  { id: 'day_exp', title: 'Gün Beklentisi', sub: 'Stres Yönetimi', icon: Shield, color: 'bg-cyan-100 text-cyan-700' },
+  { id: 'crisis', title: 'Kriz Matrisi', sub: 'Yetki Dağılımı', icon: AlertTriangle, color: 'bg-yellow-100 text-yellow-700' },
+  { id: 'ops', title: 'Operasyon', sub: 'Checkpoint', icon: Clock, color: 'bg-stone-200 text-stone-700' },
+  { id: 'final', title: 'Pasta & Final', sub: 'Kapanış', icon: CheckCircle, color: 'bg-lime-100 text-lime-700' },
+  { id: 'post_ops', title: 'Post-Op', sub: 'Teslimat', icon: Save, color: 'bg-gray-100 text-gray-700' },
+];
+
+const DATA_MAP = {
+  'family': { list: ["Yakın zamanda vefat var", "Boşanmış ebeveyn", "Yeniden evlilik durumu", "Aileler arası gerginlik", "Aynı kareye girmemesi gereken kişiler", "Küslük durumu", "Hastalık / sağlık hassasiyeti", "Psikolojik hassasiyet"], social: ["Dini hassasiyet", "Geleneksel sınırlar", "Alkol hassasiyeti", "Foto / video hassasiyeti"] },
+  'moments': { list: ["Gelin hazırlık", "Damat hazırlık", "Aile ile ilk an", "First look", "Albüm çekimi", "Nikah anı", "Giriş", "Eğlence / dans", "Gece sonu"], org: ["Giriş koreografisi", "Pasta anı", "Sürpriz an", "Konuşmalar", "Özel ritüeller"] },
+  'shotlist': { list: ["Hazırlık Detayları (Yüzük, parfüm)", "Gelin-Anne Anı", "Damat-Baba Anı", "First Look", "Nikah Çıkış"], check: ["Highlight kilitlendi", "Negatif listeler onaylandı"] },
+  'must_have': { list: ["Aile ile toplu foto", "Anne-baba özel kare", "Arkadaşlarla eğlenceli çekim", "Detay çekimleri", "Drone (varsa)", "Gün batımı fotoğrafı"] },
+  'negatives': { list: ["Zorla poz", "Sürekli yönlendirme", "Kalabalık grup çekimleri", "Abartılı flaş", "Sosyal medya pozları", "Kamera ile fazla iletişim", "Mizansen", "Yüksek sesli yönlendirme"] },
+  'style': { list: ["Minimal", "Duygusal", "Eğlenceli", "Klasik", "Modern", "Fashion / Editorial", "Belgesel", "Doğal"] },
+  'day_exp': { list: ["Koşturma istemiyoruz", "Sessiz ve sakin iletişim", "Sadece gerekli anonslar", "Bizi koruyun, stresi filtreleyin", "Sürprizlere açığız", "Programdan sapma olabilir"] },
+  'ops': { list: ["Ekip gelin evinde", "Gelin alma bitti", "Mekân girişi yapıldı", "Gelin hazırlığı bitti", "Damat hazırlığı bitti", "İlk karşılaşma yapıldı", "Albüm çekildi", "Aile fotoğrafları çekildi", "Arkadaş fotoğrafları çekildi", "Misafirler gelmeye başladı", "Misafir doluluk oranı tamamlandı", "Salon çekimi tamamlandı", "Karşılama hazır", "Soundcheck bitti", "Ön orkestra sahnede", "Ana orkestra sahnede"] },
+  'final': { list: ["Pasta kesildi", "Final shotlist tamamlandı", "Çıkış başladı", "Etkinlik kapandı"] },
+  'post_ops': { list: ["Data backup 1", "Data backup 2", "Video teslim edildi", "Fotoğraflar teslim edildi", "Önden paylaşım fotoğrafları gönderildi", "Önden paylaşım videoları gönderildi", "Revize yapıldı", "Albüm onaylandı", "Albüm teslim edildi"] },
+  'expectations': { list: ["Bizi yönlendirin", "Doğal akış istiyoruz", "Çok poz istemiyoruz", "Rahat, sakin ilerlesin", "Enerjik, eğlenceli olsun", "Editorial / şık dursun"] }
+};
+
+// --- Alt Bileşenler ---
+
+const CheckboxItem = ({ label, isChecked, note, onToggle, onNoteChange }) => (
+  <div className="mb-3 p-4 bg-white border border-stone-100 rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.02)] active:scale-[0.98] transition-all">
+    <div className="flex items-center cursor-pointer" onClick={() => { onToggle(); interact('click'); }}>
+      <div className={`w-6 h-6 rounded-full border flex items-center justify-center mr-3 transition-all duration-300 ${isChecked ? 'bg-amber-500 border-amber-500 scale-110 shadow-md shadow-amber-200' : 'border-stone-300'}`}>
+        {isChecked && <CheckCircle size={16} className="text-white animate-bounceIn" />}
+      </div>
+      <span className={`text-sm font-medium transition-colors ${isChecked ? 'text-stone-900 line-through decoration-stone-300 decoration-2' : 'text-stone-500'}`}>{label}</span>
+    </div>
+    {isChecked && (
+      <div className="mt-3 ml-9 animate-fadeIn">
+        <textarea
+          placeholder="Not ekleyin..."
+          value={note || ''}
+          onChange={(e) => onNoteChange(e.target.value)}
+          className="w-full text-sm p-3 border border-stone-200 rounded-lg bg-[#FAF9F6] focus:outline-none focus:ring-2 focus:ring-amber-200 focus:bg-white transition-all text-stone-700"
+          rows="2"
+        />
+      </div>
+    )}
+  </div>
+);
+
+const PersonCard = ({ person, onDelete }) => (
+  <div className="flex items-start gap-4 p-4 bg-white border border-stone-100 rounded-xl mb-4 shadow-[0_2px_8px_rgba(0,0,0,0.03)] relative animate-slideIn">
+    <div className="w-14 h-14 bg-gradient-to-br from-stone-100 to-stone-200 rounded-full flex items-center justify-center text-stone-400 flex-shrink-0 border border-stone-200 shadow-inner">
+      {person.photo ? <img src={person.photo} alt="Person" className="w-full h-full object-cover rounded-full" /> : <Users size={24} />}
+    </div>
+    <div className="flex-1 pr-6">
+      <h4 className="font-bold text-stone-900 text-sm">{person.name}</h4>
+      <span className="text-xs font-semibold text-amber-600 block mb-1 uppercase tracking-wide">{person.relation}</span>
+      {person.note && <p className="text-xs text-stone-600 bg-stone-50 p-2 rounded border border-stone-100 italic">"{person.note}"</p>}
+      <div className="flex flex-wrap gap-1 mt-2">
+        {person.tags.map((tag, i) => (
+          <span key={i} className="text-[10px] px-2 py-0.5 bg-white text-stone-600 rounded-md border border-stone-200 shadow-sm">
+            {tag}
+          </span>
+        ))}
+      </div>
+    </div>
+    <button onClick={() => { onDelete(); interact('error'); }} className="absolute top-2 right-2 p-2 text-stone-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"><Trash2 size={16} /></button>
+  </div>
+);
+
+// --- Ana Uygulama ---
+
+export default function CeremonixApp() {
+  const [currentView, setCurrentView] = useState('intro');
+  const [userRole, setUserRole] = useState('user'); // 'user' (Çift) | 'admin' (Yönetici)
+  const [activeSectionId, setActiveSectionId] = useState(null);
+  const [showPanicModal, setShowPanicModal] = useState(false);
+  
+  // Panic State
+  const [panicReason, setPanicReason] = useState('');
+  const [panicNote, setPanicNote] = useState('');
+  
+  // Data State
+  const [vipList, setVipList] = useState(() => JSON.parse(localStorage.getItem('crm_vipList')) || []);
+  const [checklistState, setChecklistState] = useState(() => JSON.parse(localStorage.getItem('crm_checklist')) || {});
+  const [newPerson, setNewPerson] = useState({ name: '', relation: '', note: '', photo: null, visibility: [], tags: [] });
+
+  // Veri değişince kaydet
+  useEffect(() => { localStorage.setItem('crm_vipList', JSON.stringify(vipList)); }, [vipList]);
+  useEffect(() => { localStorage.setItem('crm_checklist', JSON.stringify(checklistState)); }, [checklistState]);
+
+  const toggleCheck = (id, label) => {
+    const key = `${id}-${label}`;
+    setChecklistState(prev => ({
+      ...prev,
+      [key]: { ...prev[key], checked: !prev[key]?.checked }
+    }));
+  };
+
+  const updateNote = (id, label, note) => {
+    const key = `${id}-${label}`;
+    setChecklistState(prev => ({
+      ...prev,
+      [key]: { ...prev[key], note }
+    }));
+  };
+
+  const addVip = () => {
+    if(!newPerson.name) {
+        interact('error');
+        return;
+    }
+    setVipList([...vipList, { ...newPerson, id: Date.now() }]);
+    setNewPerson({ name: '', relation: '', note: '', photo: null, visibility: [], tags: [] });
+    interact('success');
+  };
+
+  const goBack = () => {
+    setCurrentView('dashboard');
+    setActiveSectionId(null);
+  };
+
+  const calculateProgress = (sectionId) => {
+    const opts = DATA_MAP[sectionId];
+    if (!opts) return 0;
+    let allItems = [];
+    Object.values(opts).forEach(list => allItems = [...allItems, ...list]);
+    if (allItems.length === 0) return 0;
+    let checkedCount = 0;
+    allItems.forEach(item => {
+      if (checklistState[`${sectionId}-${item}`]?.checked) checkedCount++;
+    });
+    return Math.round((checkedCount / allItems.length) * 100);
+  };
+
+  const renderSectionContent = () => {
+    const section = SECTIONS.find(s => s.id === activeSectionId);
+    if (!section) return null;
+
+    const renderList = (id, opts, title) => (
+      <div className="mb-8">
+        {title && <h3 className="text-xs font-bold text-stone-400 uppercase tracking-widest mb-4 pl-1 border-l-2 border-amber-400 ml-1">{title}</h3>}
+        {opts.map(opt => (
+          <CheckboxItem 
+            key={opt} label={opt} 
+            isChecked={checklistState[`${id}-${opt}`]?.checked} 
+            note={checklistState[`${id}-${opt}`]?.note}
+            onToggle={() => toggleCheck(id, opt)}
+            onNoteChange={(val) => updateNote(id, opt, val)}
+          />
+        ))}
+      </div>
+    );
+
+    switch (activeSectionId) {
+      case 'vip':
+        return (
+          <div className="p-5 pb-32">
+            <div className="bg-gradient-to-br from-amber-50 to-orange-50 p-5 rounded-2xl border border-amber-100 mb-8 text-xs text-amber-900 leading-relaxed shadow-sm">
+              <div className="flex gap-2 mb-2 font-bold text-amber-700 items-center"><Shield size={16}/> Önemli Uyarı</div>
+              Bu alana eklenen kişiler, tüm operasyon ekibinin telefonlarına "Dikkat Edilecekler" listesi olarak düşer.
+            </div>
+            
+            <div className="bg-white p-5 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-stone-100 mb-8">
+              <h3 className="font-bold text-stone-900 mb-4 text-sm flex items-center gap-2"><Plus size={16} className="text-amber-500"/> Yeni Kişi Ekle</h3>
+              <input type="text" placeholder="Ad Soyad" className="w-full p-3 bg-stone-50 rounded-xl text-sm mb-3 border border-stone-100 focus:border-amber-300 focus:bg-white focus:outline-none transition-all"
+                value={newPerson.name} onChange={e => setNewPerson({...newPerson, name: e.target.value})} />
+              <input type="text" placeholder="Yakınlık (Örn: Gelin Annesi)" className="w-full p-3 bg-stone-50 rounded-xl text-sm mb-3 border border-stone-100 focus:border-amber-300 focus:bg-white focus:outline-none transition-all"
+                value={newPerson.relation} onChange={e => setNewPerson({...newPerson, relation: e.target.value})} />
+              <textarea placeholder="Özel durum notu (Örn: Yürüme güçlüğü çekiyor)..." className="w-full p-3 bg-stone-50 rounded-xl text-sm mb-3 border border-stone-100 focus:border-amber-300 focus:bg-white focus:outline-none transition-all" rows="2"
+                value={newPerson.note} onChange={e => setNewPerson({...newPerson, note: e.target.value})} />
+              
+              <div className="flex gap-2 mb-5 overflow-x-auto pb-2 no-scrollbar">
+                {['⭐ Özel Foto', '⚠ Hassas', '♿ Fiziksel', '🧠 Duygusal'].map(tag => (
+                  <button key={tag} onClick={() => {
+                      const newTags = newPerson.tags.includes(tag) ? newPerson.tags.filter(t => t !== tag) : [...newPerson.tags, tag];
+                      setNewPerson({...newPerson, tags: newTags});
+                      interact('click');
+                    }}
+                    className={`whitespace-nowrap text-xs px-3 py-2 rounded-lg border transition-all active:scale-95 ${newPerson.tags.includes(tag) ? 'bg-stone-800 text-white border-stone-800 shadow-md' : 'bg-white border-stone-200 text-stone-500'}`}
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+              <button onClick={addVip} className="w-full bg-stone-900 text-white py-3.5 rounded-xl text-sm font-bold shadow-lg shadow-stone-200 active:scale-95 transition-transform flex justify-center items-center gap-2">
+                <Save size={16} /> Kaydet
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {vipList.map(p => <PersonCard key={p.id} person={p} onDelete={() => setVipList(vipList.filter(x => x.id !== p.id))} />)}
+            </div>
+          </div>
+        );
+
+      case 'crisis':
+        return (
+          <div className="p-5 pb-32">
+            {['Zaman Krizi', 'Aile Krizi', 'Teknik Kriz'].map((type, idx) => (
+              <div key={type} className="mb-6 bg-white p-5 rounded-2xl border border-stone-100 shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
+                <h4 className="font-bold text-stone-800 text-sm mb-4 flex items-center gap-2 border-b border-stone-50 pb-3">
+                  <span className={`w-8 h-8 rounded-full flex items-center justify-center bg-${['blue', 'purple', 'red'][idx]}-50 text-${['blue', 'purple', 'red'][idx]}-600`}>
+                    <AlertTriangle size={16} />
+                  </span>
+                  {type}
+                </h4>
+                <div className="space-y-4">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="flex items-center gap-3">
+                      <span className="w-6 h-6 rounded-full bg-stone-100 text-stone-500 text-xs flex items-center justify-center font-bold">{i}</span>
+                      <select className="flex-1 text-sm p-3 rounded-xl bg-stone-50 border-none outline-none focus:ring-2 focus:ring-stone-200" onChange={() => interact('click')}>
+                        <option>Yetkili Seç...</option>
+                        <option>Organizasyon Lideri</option>
+                        <option>Sağdıç / Nedime</option>
+                        <option>Aile Büyüğü</option>
+                        <option>Çiftin Kendisi</option>
+                      </select>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+
+      default:
+        const data = DATA_MAP[activeSectionId];
+        return (
+          <div className="p-5 pb-32">
+            {data?.list && renderList(`${activeSectionId}_main`, data.list, 'Kontrol Listesi')}
+            {data?.social && renderList(`${activeSectionId}_social`, data.social, 'Sosyal & Kültürel')}
+            {data?.org && renderList(`${activeSectionId}_org`, data.org, 'Organizasyon Detayları')}
+            {data?.check && renderList(`${activeSectionId}_check`, data.check, 'Onay Noktaları')}
+          </div>
+        );
+    }
+  };
+
+  // --- Ekranlar ---
+
+  const IntroView = () => (
+    <div className="flex flex-col items-center justify-center h-full bg-[#FDFBF7] p-8 text-center animate-fadeIn relative overflow-hidden">
+      <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-stone-100 to-transparent opacity-50 pointer-events-none"></div>
+      
+      {/* Login Type Switcher */}
+      <div className="flex bg-white rounded-full p-1 shadow-md mb-8 z-10 border border-stone-100">
+        <button 
+          onClick={() => { setUserRole('user'); interact('click'); }}
+          className={`px-6 py-2 rounded-full text-xs font-bold transition-all ${userRole === 'user' ? 'bg-stone-900 text-white shadow-sm' : 'text-stone-400 hover:text-stone-600'}`}
+        >
+          ÇİFT GİRİŞİ
+        </button>
+        <button 
+          onClick={() => { setUserRole('admin'); interact('click'); }}
+          className={`px-6 py-2 rounded-full text-xs font-bold transition-all ${userRole === 'admin' ? 'bg-amber-600 text-white shadow-sm' : 'text-stone-400 hover:text-stone-600'}`}
+        >
+          YÖNETİCİ
+        </button>
+      </div>
+
+      <div className={`w-28 h-28 rounded-full flex items-center justify-center text-white mb-6 shadow-2xl shadow-stone-400 z-10 animate-bounceIn transition-colors duration-500 ${userRole === 'admin' ? 'bg-amber-600' : 'bg-stone-900'}`}>
+        {userRole === 'admin' ? <Briefcase size={40} strokeWidth={1.5} /> : <Heart size={40} strokeWidth={1.5} className="text-amber-400" />}
+      </div>
+      
+      <h1 className="font-serif text-4xl font-light text-stone-900 mb-2 tracking-tight z-10">CRMonX</h1>
+      <p className="text-stone-500 text-xs mb-12 uppercase tracking-[0.3em] font-bold z-10">
+        {userRole === 'admin' ? 'Yönetici & Operasyon Paneli' : 'Düğün Planlama Asistanı'}
+      </p>
+      
+      <div className="w-full max-w-xs space-y-4 z-10">
+        <div className="bg-white p-3 rounded-2xl shadow-lg shadow-stone-100 border border-stone-50 flex items-center gap-3">
+          <User size={20} className="text-stone-400 ml-2" />
+          <input type="email" placeholder={userRole === 'admin' ? "Kurumsal E-Posta" : "E-Posta Adresi"} className="flex-1 p-1 text-sm bg-transparent outline-none text-stone-800 placeholder-stone-300" />
+        </div>
+        <div className="bg-white p-3 rounded-2xl shadow-lg shadow-stone-100 border border-stone-50 flex items-center gap-3">
+          <Lock size={20} className="text-stone-400 ml-2" />
+          <input type="password" placeholder="Şifre" className="flex-1 p-1 text-sm bg-transparent outline-none text-stone-800 placeholder-stone-300" />
+        </div>
+        
+        <button 
+          onClick={() => { interact('success'); setCurrentView('dashboard'); }}
+          className={`w-full text-white py-4 rounded-2xl font-bold text-sm shadow-xl transition-all active:scale-95 flex items-center justify-center gap-2 mt-6 ${userRole === 'admin' ? 'bg-amber-600 hover:bg-amber-700' : 'bg-stone-900 hover:bg-stone-800'}`}
+        >
+          {userRole === 'admin' ? 'YÖNETİCİ GİRİŞİ' : 'GÜVENLİ GİRİŞ'} <LogIn size={16} />
+        </button>
+      </div>
+      
+      <p className="text-[10px] text-stone-300 absolute bottom-8">Designed for Perfection</p>
+    </div>
+  );
+
+  const DashboardView = () => (
+    <div className="p-5 pb-32 animate-fadeIn">
+      <div className="mb-6 flex justify-between items-end">
+        <div>
+          <h2 className="text-xl font-bold text-stone-900">
+            {userRole === 'admin' ? 'Operasyon Paneli' : 'Plan Defteri'}
+          </h2>
+          <p className="text-xs text-stone-500">
+            {userRole === 'admin' ? 'Aktif Düğün: Semanur & Kadir' : 'Operasyonel İlerleme Durumu'}
+          </p>
+        </div>
+        <div className="text-right">
+          <span className="text-2xl font-serif font-bold text-stone-900">% {
+            Math.round(SECTIONS.reduce((acc, curr) => acc + calculateProgress(curr.id), 0) / SECTIONS.length)
+          }</span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        {SECTIONS.map((section) => {
+          const progress = calculateProgress(section.id);
+          return (
+            <button
+              key={section.id}
+              onClick={() => { interact('click'); setActiveSectionId(section.id); setCurrentView('section'); }}
+              className="bg-white p-4 rounded-2xl shadow-[0_2px_10px_rgba(0,0,0,0.03)] border border-stone-50 flex flex-col gap-3 active:scale-95 transition-all relative overflow-hidden group"
+            >
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${section.color} transition-transform group-hover:scale-110`}>
+                <section.icon size={20} />
+              </div>
+              <div className="text-left w-full relative z-10">
+                <h3 className="font-bold text-stone-900 text-sm leading-tight">{section.title}</h3>
+                <p className="text-[10px] text-stone-400 mt-1 font-medium uppercase tracking-wide">{section.sub}</p>
+              </div>
+              
+              {/* Progress Bar */}
+              <div className="w-full bg-stone-100 h-1.5 rounded-full mt-1 overflow-hidden">
+                <div className="h-full bg-stone-800 transition-all duration-1000 ease-out" style={{ width: `${progress}%` }}></div>
+              </div>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  );
+
+  const ProfileView = () => (
+    <div className="p-5 pb-32 animate-fadeIn">
+      <div className="bg-white rounded-3xl p-8 text-center border border-stone-100 shadow-sm mb-6 relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-20 bg-stone-50 rounded-b-[50%] -translate-y-10"></div>
+        <div className="w-24 h-24 bg-white rounded-full mx-auto mb-4 flex items-center justify-center text-stone-300 relative z-10 border-4 border-stone-50 shadow-sm">
+          {userRole === 'admin' ? <Briefcase size={40} /> : <User size={40} />}
+        </div>
+        <h2 className="text-2xl font-serif font-bold text-stone-900">
+          {userRole === 'admin' ? 'Admin: Semanur A.' : 'Semanur & Kadir'}
+        </h2>
+        <p className="text-stone-500 text-xs font-bold uppercase tracking-widest mt-2 bg-amber-50 text-amber-700 inline-block px-3 py-1 rounded-full">
+          {userRole === 'admin' ? 'Baş Planlayıcı' : '24 Ağustos 2026'}
+        </p>
+      </div>
+      <div className="space-y-3">
+        {userRole === 'admin' ? (
+          <>
+            <button className="w-full bg-white p-5 rounded-2xl text-left font-bold text-stone-700 flex justify-between items-center shadow-sm">Tüm Sözleşmeler <ChevronDown size={16} /></button>
+            <button className="w-full bg-white p-5 rounded-2xl text-left font-bold text-stone-700 flex justify-between items-center shadow-sm">Finansal Raporlar <ChevronDown size={16} /></button>
+            <button className="w-full bg-white p-5 rounded-2xl text-left font-bold text-stone-700 flex justify-between items-center shadow-sm">Tedarikçi Listesi <ChevronDown size={16} /></button>
+          </>
+        ) : (
+          <>
+            <button className="w-full bg-white p-5 rounded-2xl text-left font-bold text-stone-700 flex justify-between items-center shadow-sm">Sözleşme & Ödemeler <ChevronDown size={16} /></button>
+            <button className="w-full bg-white p-5 rounded-2xl text-left font-bold text-stone-700 flex justify-between items-center shadow-sm">Ekip İletişim <ChevronDown size={16} /></button>
+            <button className="w-full bg-white p-5 rounded-2xl text-left font-bold text-stone-700 flex justify-between items-center shadow-sm">Mekan Krokisi <ChevronDown size={16} /></button>
+          </>
+        )}
+        <button 
+          onClick={() => { interact('click'); setCurrentView('intro'); }}
+          className="w-full bg-red-50 p-5 rounded-2xl text-left font-bold text-red-700 flex justify-between items-center shadow-sm mt-6 active:scale-[0.98] transition-transform"
+        >
+          Oturumu Kapat <LogIn size={16} className="rotate-180"/>
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="flex flex-col h-screen bg-[#FDFBF7] font-sans text-stone-800 overflow-hidden select-none">
+      
+      {currentView === 'intro' ? (
+        <IntroView />
+      ) : (
+        <>
+          {/* Mobile Top Bar */}
+          <header className="bg-white/90 backdrop-blur-md border-b border-stone-200 px-5 h-16 flex items-center justify-between z-20 shrink-0 sticky top-0 safe-area-top shadow-sm">
+            {currentView === 'section' ? (
+              <button onClick={() => { interact('click'); goBack(); }} className="p-2 -ml-2 text-stone-600 hover:bg-stone-50 rounded-full active:bg-stone-100">
+                <ArrowLeft size={24} />
+              </button>
+            ) : (
+              <div className="flex flex-col">
+                <h1 className="font-serif font-medium text-xl text-stone-900 tracking-tight">CRMonX</h1>
+                <span className="text-[10px] text-stone-400 font-bold uppercase tracking-widest">
+                  {userRole === 'admin' ? 'YÖNETİCİ' : 'PLAN DEFTERİ'}
+                </span>
+              </div>
+            )}
+            
+            {currentView === 'section' && (
+              <h2 className="font-bold text-stone-800 text-sm absolute left-1/2 -translate-x-1/2 opacity-90">
+                {SECTIONS.find(s => s.id === activeSectionId)?.title}
+              </h2>
+            )}
+
+            <button 
+              onClick={() => { interact('error'); setShowPanicModal(true); setPanicReason(''); setPanicNote(''); }} 
+              className="w-10 h-10 bg-red-50 text-red-600 rounded-full flex items-center justify-center animate-pulse border border-red-100 shadow-sm active:scale-90 transition-transform"
+            >
+              <PhoneCall size={18} />
+            </button>
+          </header>
+
+          {/* Main Content Area */}
+          <main className="flex-1 overflow-y-auto no-scrollbar">
+            {currentView === 'dashboard' && <DashboardView />}
+            {currentView === 'section' && renderSectionContent()}
+            {currentView === 'profile' && <ProfileView />}
+          </main>
+
+          {/* Bottom Tab Navigation */}
+          {currentView !== 'section' && (
+            <nav className="bg-white border-t border-stone-100 px-8 py-3 flex justify-between items-center shrink-0 safe-area-bottom z-20 shadow-[0_-10px_30px_rgba(0,0,0,0.03)] rounded-t-3xl">
+              <button 
+                onClick={() => { interact('click'); setCurrentView('dashboard'); }}
+                className={`flex flex-col items-center gap-1 transition-colors ${currentView === 'dashboard' ? 'text-stone-900' : 'text-stone-300'}`}
+              >
+                <Grid size={24} strokeWidth={currentView === 'dashboard' ? 2.5 : 2} />
+              </button>
+
+              {/* Center Panic Button in Tab */}
+              <div className="relative -top-8">
+                <button 
+                  onClick={() => { interact('click'); setActiveSectionId('ops'); setCurrentView('section'); }}
+                  className="w-16 h-16 bg-stone-900 rounded-full flex items-center justify-center text-white shadow-xl shadow-stone-300 active:scale-90 transition-transform border-4 border-[#FDFBF7]"
+                >
+                  <Clock size={28} />
+                </button>
+              </div>
+
+              <button 
+                onClick={() => { interact('click'); setCurrentView('profile'); }}
+                className={`flex flex-col items-center gap-1 transition-colors ${currentView === 'profile' ? 'text-stone-900' : 'text-stone-300'}`}
+              >
+                <User size={24} strokeWidth={currentView === 'profile' ? 2.5 : 2} />
+              </button>
+            </nav>
+          )}
+        </>
+      )}
+
+      {/* Panic Modal (WhatsApp Integration) */}
+      {showPanicModal && (
+        <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-fadeIn">
+          <div className="bg-white rounded-[2rem] w-full max-w-sm p-6 relative shadow-2xl animate-bounceIn max-h-[90vh] overflow-y-auto">
+            <button onClick={() => setShowPanicModal(false)} className="absolute top-5 right-5 p-2 bg-stone-100 rounded-full text-stone-500 hover:bg-stone-200"><X size={20} /></button>
+            
+            <div className="text-center mb-6 mt-2">
+              <div className="w-20 h-20 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-red-100 animate-pulse shadow-lg shadow-red-100">
+                <AlertTriangle size={36} />
+              </div>
+              <h3 className="text-2xl font-black text-stone-900 tracking-tight">ACİL YARDIM</h3>
+              <p className="text-xs text-stone-500 mt-2 px-2">Arama Sebebi Seçiniz (Mesaj Otomatik Oluşur)</p>
+            </div>
+
+            <div className="space-y-3 mb-6">
+              {[
+                { label: 'Gelin/Damat Yanına Destek', icon: Users },
+                { label: 'Teknik Sorun (Ses/Işık)', icon: Activity },
+                { label: 'Mekân / Hizmet Sorunu', icon: Shield },
+                { label: 'Diğer', icon: MessageCircle }
+              ].map((item) => (
+                <button
+                  key={item.label}
+                  onClick={() => { setPanicReason(item.label); interact('click'); }}
+                  className={`w-full py-3 px-4 border-2 rounded-xl font-bold text-sm flex items-center gap-3 transition-all ${
+                    panicReason === item.label 
+                      ? 'border-red-500 bg-red-50 text-red-700 shadow-md transform scale-[1.02]' 
+                      : 'border-stone-100 bg-white text-stone-600 hover:bg-stone-50'
+                  }`}
+                >
+                  <item.icon size={18} /> {item.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="mb-6">
+               <textarea
+                placeholder="Eklemek istediğiniz not (Opsiyonel)..."
+                value={panicNote}
+                onChange={(e) => setPanicNote(e.target.value)}
+                className="w-full p-3 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-red-300 focus:bg-white transition-colors"
+                rows="2"
+              />
+            </div>
+
+            <div className="bg-stone-50 p-3 rounded-xl mb-4 text-center border border-stone-100">
+              <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Operasyon Hattı</p>
+              <p className="text-lg font-mono font-bold text-stone-800 tracking-wider">+90 532 561 45 93</p>
+            </div>
+            
+            <button 
+              onClick={() => { 
+                interact('success');
+                const finalReason = panicReason || 'Genel Destek Talebi';
+                const message = `🚨 *ACİL DURUM BİLDİRİMİ* 🚨%0A%0A*Sebep:* ${finalReason}%0A*Not:* ${panicNote || 'Belirtilmedi'}%0A%0A_Lütfen acil dönüş yapınız._`;
+                window.location.href = `https://wa.me/905325614593?text=${message}`;
+                setShowPanicModal(false); 
+              }} 
+              className={`w-full py-4 rounded-2xl font-bold text-lg shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 ${
+                panicReason ? 'bg-green-600 text-white shadow-green-200 hover:bg-green-700' : 'bg-stone-300 text-stone-500 cursor-not-allowed'
+              }`}
+              disabled={!panicReason}
+            >
+              <MessageCircle size={24} className={panicReason ? "animate-bounce" : ""} /> WHATSAPP İLE BİLDİR
+            </button>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}
